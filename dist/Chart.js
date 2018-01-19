@@ -36,10 +36,10 @@ function getRgba(string) {
    if (!string) {
       return;
    }
-   var abbr =  /^#([a-fA-F0-9]{3})$/,
-       hex =  /^#([a-fA-F0-9]{6})$/,
-       rgba = /^rgba?\(\s*([+-]?\d+)\s*,\s*([+-]?\d+)\s*,\s*([+-]?\d+)\s*(?:,\s*([+-]?[\d\.]+)\s*)?\)$/,
-       per = /^rgba?\(\s*([+-]?[\d\.]+)\%\s*,\s*([+-]?[\d\.]+)\%\s*,\s*([+-]?[\d\.]+)\%\s*(?:,\s*([+-]?[\d\.]+)\s*)?\)$/,
+   var abbr =  /^#([a-fA-F0-9]{3})$/i,
+       hex =  /^#([a-fA-F0-9]{6})$/i,
+       rgba = /^rgba?\(\s*([+-]?\d+)\s*,\s*([+-]?\d+)\s*,\s*([+-]?\d+)\s*(?:,\s*([+-]?[\d\.]+)\s*)?\)$/i,
+       per = /^rgba?\(\s*([+-]?[\d\.]+)\%\s*,\s*([+-]?[\d\.]+)\%\s*,\s*([+-]?[\d\.]+)\%\s*(?:,\s*([+-]?[\d\.]+)\s*)?\)$/i,
        keyword = /(\w+)/;
 
    var rgb = [0, 0, 0],
@@ -1513,6 +1513,8 @@ Converter.prototype.getValues = function(space) {
 
 module.exports = convert;
 },{"4":4}],6:[function(require,module,exports){
+'use strict'
+
 module.exports = {
 	"aliceblue": [240, 248, 255],
 	"antiquewhite": [250, 235, 215],
@@ -1663,6 +1665,7 @@ module.exports = {
 	"yellow": [255, 255, 0],
 	"yellowgreen": [154, 205, 50]
 };
+
 },{}],7:[function(require,module,exports){
 /**
  * @namespace Chart
@@ -12053,15 +12056,46 @@ module.exports = function(Chart) {
 				var pointLabelPosition = scale.getPointPosition(i, outerDistance + 5);
 
 				// Keep this in loop since we may support array properties here
-				var pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor, globalDefaults.defaultFontColor);
 				ctx.font = plFont.font;
-				ctx.fillStyle = pointLabelFontColor;
-
 				var angleRadians = scale.getIndexAngle(i);
 				var angle = helpers.toDegrees(angleRadians);
 				ctx.textAlign = getTextAlignForAngle(angle);
-				adjustPointPositionForLabelHeight(angle, scale._pointLabelSizes[i], pointLabelPosition);
-				fillText(ctx, scale.pointLabels[i] || '', pointLabelPosition, plFont.size);
+				var pointLabelFontColor = null;
+
+				// Point Label Color
+				if (pointLabelOpts.fontColor) {
+					// handle scale.pointLabels[i] as string or array combined with pointLabelFontColor as string or array or none given.
+					if (typeof scale.pointLabels[i] === 'string') {
+						if (typeof pointLabelOpts.fontColor === 'string') {
+							pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor, globalDefaults.defaultFontColor);
+						} else {
+							pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor[0], globalDefaults.defaultFontColor);
+						}
+						adjustPointPositionForLabelHeight(angle, scale._pointLabelSizes[i], pointLabelPosition);
+						ctx.fillStyle = pointLabelFontColor;
+						fillText(ctx, scale.pointLabels[i] || '', pointLabelPosition, plFont.size);
+					} else {
+						var yOffset = 0;
+						for (var x = 0; x < scale.pointLabels[i].length; x++) {
+							if (typeof pointLabelOpts.fontColor === 'string') {
+								pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor, globalDefaults.defaultFontColor);
+							} else {
+								pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor[x], globalDefaults.defaultFontColor);
+							}
+							var pointLabelPosition1 = JSON.parse(JSON.stringify(pointLabelPosition));
+							pointLabelPosition1.y += yOffset;
+							adjustPointPositionForLabelHeight(angle, scale._pointLabelSizes[i], pointLabelPosition1);
+							ctx.fillStyle = pointLabelFontColor;
+							fillText(ctx, scale.pointLabels[i][x] || '', pointLabelPosition1, plFont.size);
+							yOffset += plFont.size + 5;
+						}
+					}
+				} else {
+					pointLabelFontColor = getValueOrDefault(pointLabelOpts.fontColor, globalDefaults.defaultFontColor);
+					adjustPointPositionForLabelHeight(angle, scale._pointLabelSizes[i], pointLabelPosition);
+					ctx.fillStyle = pointLabelFontColor;
+					fillText(ctx, scale.pointLabels[i] || '', pointLabelPosition, plFont.size);
+				}
 			}
 		}
 	}
